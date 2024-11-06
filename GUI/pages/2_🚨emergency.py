@@ -28,7 +28,7 @@ def load_models():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     model_paths = [
         os.path.join(base_dir, "scaler_and_model.pkl"),
-        os.path.join(base_dir, "Causality_data.pkl"),
+        os.path.join(base_dir, "Causality_data_new.pkl"),
         os.path.join(base_dir, "xgb_model.pkl"),
         os.path.join(base_dir, "Mapping_Model.pkl")
     ]
@@ -50,18 +50,18 @@ if models:
 else:
     st.stop()
 
-accident_scaler = model1.get('scaler')
-accident_model = model1.get('model')
+# accident_scaler = model1.get('scaler')
+# accident_model = model1.get('model')
 
-scaler = model2['scaler']
-pca = model2['pca']
-index = model2['faiss_index']
-label_mapping = model2['label_mapping']
-y_balanced = model2['y_balanced']
+# scaler = model2['scaler']
+# pca = model2['pca']
+# index = model2['faiss_index']
+# label_mapping = model2['label_mapping']
+# y_balanced = model2['y_balanced']
 
-if not all([scaler, pca, index, label_mapping, y_balanced]):
-    st.error("Some components are missing from the model data. Please ensure all necessary components are saved.")
-    st.stop()
+# if not all([scaler, pca, index, label_mapping, y_balanced]):
+#     st.error("Some components are missing from the model data. Please ensure all necessary components are saved.")
+#     st.stop()
 
 # Dictionary mappings
 days_dict = {'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6}
@@ -146,18 +146,29 @@ def page_prediction():
         if predict:
             with st.spinner("Predicting..."):
                 if all([input1, input2, input3, input4, input5]):
-                    input_scaled = scaler.transform(Causality_input)
-                    input_pca = pca.transform(input_scaled)
-                    k = 3 
-                    distances, indices = index.search(input_pca, k)
-                    neighbor_labels = y_balanced[indices[0]]
-                    predicted_label_numeric = np.bincount(neighbor_labels).argmax()
-                    predicted_label = label_mapping[predicted_label_numeric]
+                    try:
+                        # Step 1: Scale the input
+                        input_scaled = models[1]['scaler'].transform(Causality_input)
 
-                    st.write(f"Prediction result for {prediction_type}: {predicted_label}")
+                        # Step 2: Apply PCA
+                        input_pca = models[1]['pca'].transform(input_scaled)
+
+                        # Step 3: Search in the FAISS index for nearest neighbors
+                        k = 3  # Number of nearest neighbors to consider
+                        distances, indices = models[1]['faiss_index'].search(input_pca, k)
+
+                        # Step 4: Use the nearest neighbor labels to predict
+                        # neighbor_labels = models[1]['y_balanced'][indices[0]]
+                        # predicted_label_numeric = np.bincount(neighbor_labels).argmax()
+
+                        # Step 5: Map the predicted label to the actual class
+                        predicted_label = models[1]['label_mapping'][predicted_label_numeric]
+
+                        st.write(f"Prediction result for {prediction_type}: {predicted_label}")
+                    except Exception as e:
+                        st.error(f"An error occurred during prediction: {str(e)}")
                 else:
                     st.warning("Please fill all the inputs!")
-
     elif prediction_type == "Number of Casualties":
         st.write("Please provide the following details:")
         road = list(road_conditions_dict.keys())
